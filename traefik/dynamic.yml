@@ -1,0 +1,223 @@
+http:
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+          - PATCH
+        accessControlAllowOriginList:
+          - "https://github-analyzer.com"
+          - "https://www.github-analyzer.com"
+          - "https://app.github-analyzer.com"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex"
+          server: ""
+
+    # Rate limiting
+    api-rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Authentication rate limiting (stricter)
+    auth-rate-limit:
+      rateLimit:
+        burst: 10
+        average: 5
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # CORS for API
+    api-cors:
+      headers:
+        accessControlAllowCredentials: true
+        accessControlAllowHeaders:
+          - "Authorization"
+          - "Content-Type"
+          - "X-Requested-With"
+          - "Accept"
+          - "Origin"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+        accessControlAllowOriginList:
+          - "https://github-analyzer.com"
+          - "https://www.github-analyzer.com"
+          - "https://app.github-analyzer.com"
+        accessControlMaxAge: 86400
+
+    # Compression
+    gzip-compression:
+      compress: {}
+
+    # IP whitelist for admin (optional)
+    admin-whitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+
+    # Redirect to www (optional)
+    redirect-to-www:
+      redirectRegex:
+        regex: "^https://github-analyzer\\.com/(.*)"
+        replacement: "https://www.github-analyzer.com/${1}"
+        permanent: true
+
+    # Basic auth for monitoring endpoints
+    monitoring-auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$..."  # Generate with: htpasswd -nb admin password
+
+  routers:
+    # Main application router
+    app-router:
+      rule: "Host(`app.github-analyzer.com`)"
+      service: frontend-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - gzip-compression
+      tls:
+        certResolver: letsencrypt
+
+    # API router
+    api-router:
+      rule: "Host(`api.github-analyzer.com`) || (Host(`app.github-analyzer.com`) && PathPrefix(`/api`))"
+      service: backend-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - api-cors
+        - api-rate-limit
+        - gzip-compression
+      tls:
+        certResolver: letsencrypt
+
+    # Authentication endpoints (stricter rate limiting)
+    auth-router:
+      rule: "Host(`api.github-analyzer.com`) && PathPrefix(`/api/auth`)"
+      service: backend-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - api-cors
+        - auth-rate-limit
+        - gzip-compression
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+
+    # Admin router (with IP whitelist)
+    admin-router:
+      rule: "Host(`admin.github-analyzer.com`)"
+      service: backend-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - admin-whitelist
+        - gzip-compression
+      tls:
+        certResolver: letsencrypt
+
+    # Monitoring router
+    monitoring-router:
+      rule: "Host(`monitoring.github-analyzer.com`)"
+      service: monitoring-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - monitoring-auth
+        - gzip-compression
+      tls:
+        certResolver: letsencrypt
+
+    # Traefik dashboard
+    traefik-dashboard:
+      rule: "Host(`traefik.github-analyzer.com`)"
+      service: api@internal
+      entryPoints:
+        - websecure
+      middlewares:
+        - security-headers
+        - monitoring-auth
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:3000"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+          retries: 3
+
+    backend-service:
+      loadBalancer:
+        servers:
+          - url: "http://backend:8000"
+        healthCheck:
+          path: "/health/"
+          interval: "30s"
+          timeout: "10s"
+          retries: 3
+        sticky:
+          cookie:
+            name: "github-analyzer-session"
+            secure: true
+            httpOnly: true
+
+    monitoring-service:
+      loadBalancer:
+        servers:
+          - url: "http://prometheus:9090"
+
+# TLS configuration
+tls:
+  options:
+    default:
+      sslProtocols:
+        - "TLSv1.2"
+        - "TLSv1.3"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+      minVersion: "VersionTLS12"

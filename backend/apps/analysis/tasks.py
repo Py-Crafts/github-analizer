@@ -5,7 +5,7 @@ import openai
 import anthropic
 import json
 import os
-import pandas as pd
+import csv
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.chart import BarChart, Reference
@@ -374,17 +374,22 @@ def create_csv_export(export, result, file_path):
     """Create CSV export"""
     data = []
     
-    # Summary data
+    # Header information
+    data.append(['Repository Analysis Report'])
     data.append(['Repository', result.task.repository.name])
-    data.append(['Analysis Date', result.created_at.strftime('%Y-%m-%d %H:%M')])
+    data.append(['Analysis Date', result.created_at.strftime('%Y-%m-%d %H:%M:%S')])
     data.append(['Agent Used', result.task.agent.name])
+    data.append([])  # Empty row
+    
+    # Summary statistics
+    data.append(['Summary Statistics'])
     data.append(['Total Commits', result.total_commits])
     data.append(['Total Additions', result.total_additions])
     data.append(['Total Deletions', result.total_deletions])
-    data.append(['Files Changed', result.total_files_changed])
+    data.append(['Total Files Changed', result.total_files_changed])
     data.append([])  # Empty row
     
-    # Developer stats
+    # Developer statistics
     if result.developer_stats:
         data.append(['Developer Statistics'])
         data.append(['Developer', 'Commits', 'Additions', 'Deletions', 'Files Changed'])
@@ -398,8 +403,10 @@ def create_csv_export(export, result, file_path):
     data.append(['AI Analysis'])
     data.append([result.formatted_analysis])
     
-    df = pd.DataFrame(data)
-    df.to_csv(file_path, index=False, header=False)
+    # Write to CSV file using native Python csv module
+    with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(data)
 
 
 def create_json_export(export, result, file_path):

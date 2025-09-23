@@ -1,6 +1,6 @@
 # GitHub Analyzer
 
-A comprehensive platform for analyzing GitHub repositories using AI-powered insights, providing detailed reports on code quality, development patterns, and project health.
+GitHub Analyzer - bu GitHub repositoriyalarini tahlil qilish va AI yordamida dasturchilar faoliyatini baholash uchun mo'ljallangan to'liq ishlaydigan loyiha.
 
 ## 🚀 Features
 

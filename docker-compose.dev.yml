@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Redis Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: github_analyzer_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: github_analyzer_backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
+      - sqlite_data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: github_analyzer_celery_worker
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - backend_media:/app/media
+      - sqlite_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A config worker -l info --concurrency=2
+
+  # Celery Beat Scheduler
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: github_analyzer_celery_beat
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+volumes:
+  redis_data:
+  backend_static:
+  backend_media:
+  sqlite_data:
+
+networks:
+  default:
+    name: github_analyzer_network

@@ -26,6 +26,8 @@ THIRD_PARTY_APPS = [
     'corsheaders',
     'django_celery_beat',
     'django_celery_results',
+    'django_filters',
+    'drf_spectacular',
 ]
 
 LOCAL_APPS = [
@@ -35,7 +37,7 @@ LOCAL_APPS = [
     'apps.analysis',
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ['apps.core'] + LOCAL_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -227,6 +229,11 @@ MAX_PAGE_SIZE = 100
 
 # Cache settings (base)
 CACHE_TTL = 60 * 15  # 15 minutes
+
+# Admin site customization
+ADMIN_SITE_HEADER = 'GitHub Analyzer Admin'
+ADMIN_SITE_TITLE = 'GitHub Analyzer'
+ADMIN_INDEX_TITLE = 'Welcome to GitHub Analyzer Administration'
 
 # Logging (base configuration)
 LOGGING = {

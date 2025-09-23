@@ -1,9 +1,9 @@
-import pandas as pd
 import xlsxwriter
 from io import BytesIO
 from datetime import datetime
 from django.http import HttpResponse
 from django.utils.text import slugify
+from collections import Counter
 
 
 class ExcelExporter:
@@ -193,7 +193,7 @@ def create_export_response(buffer, filename_base, file_format='xlsx'):
 
 def analyze_commit_patterns(commit_data):
     """
-    Analyze commit patterns for insights.
+    Analyze commit patterns from commit data
     
     Args:
         commit_data: List of commit dictionaries
@@ -204,23 +204,40 @@ def analyze_commit_patterns(commit_data):
     if not commit_data:
         return {}
     
-    df = pd.DataFrame(commit_data)
+    # Convert date strings to datetime and extract patterns
+    hours = []
+    days_of_week = []
+    additions = []
+    deletions = []
     
-    # Convert date strings to datetime
-    if 'date' in df.columns:
-        df['date'] = pd.to_datetime(df['date'])
-        df['hour'] = df['date'].dt.hour
-        df['day_of_week'] = df['date'].dt.day_name()
+    for commit in commit_data:
+        if 'date' in commit:
+            try:
+                # Parse datetime string
+                if isinstance(commit['date'], str):
+                    dt = datetime.fromisoformat(commit['date'].replace('Z', '+00:00'))
+                else:
+                    dt = commit['date']
+                
+                hours.append(dt.hour)
+                days_of_week.append(dt.strftime('%A'))  # Full day name
+            except (ValueError, AttributeError):
+                pass
+        
+        if 'additions' in commit and commit['additions'] is not None:
+            additions.append(commit['additions'])
+        if 'deletions' in commit and commit['deletions'] is not None:
+            deletions.append(commit['deletions'])
     
+    # Calculate statistics
     patterns = {
-        'total_commits': len(df),
-        'avg_additions': df['additions'].mean() if 'additions' in df.columns else 0,
-        'avg_deletions': df['deletions'].mean() if 'deletions' in df.columns else 0,
-        'most_active_hour': df['hour'].mode().iloc[0] if 'hour' in df.columns and not df['hour'].empty else None,
-        'most_active_day': df['day_of_week'].mode().iloc[0] if 'day_of_week' in df.columns and not df['day_of_week'].empty else None,
-        'commit_frequency': {
-            'daily_avg': len(df) / max(1, (df['date'].max() - df['date'].min()).days) if 'date' in df.columns else 0
-        }
+        'total_commits': len(commit_data),
+        'avg_additions': sum(additions) / len(additions) if additions else 0,
+        'avg_deletions': sum(deletions) / len(deletions) if deletions else 0,
+        'most_active_hour': Counter(hours).most_common(1)[0][0] if hours else None,
+        'most_active_day': Counter(days_of_week).most_common(1)[0][0] if days_of_week else None,
+        'hourly_distribution': dict(Counter(hours)) if hours else {},
+        'daily_distribution': dict(Counter(days_of_week)) if days_of_week else {}
     }
     
     return patterns

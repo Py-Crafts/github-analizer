@@ -25,7 +25,6 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_celery_beat',
-    'django_celery_results',
     'django_filters',
     'drf_spectacular',
 ]

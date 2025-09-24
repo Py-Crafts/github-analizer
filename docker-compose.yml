@@ -1,28 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: github_analyzer_postgres
-    environment:
-      POSTGRES_DB: ${DB_NAME:-github_analyzer}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-    ports:
-      - "5432:5432"
-    networks:
-      - github_analyzer_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-github_analyzer}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
 
   # Redis Cache and Message Broker
   redis:
@@ -56,8 +34,6 @@ services:
       - DB_NAME=${DB_NAME:-github_analyzer}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_HOST=postgres
-      - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -76,8 +52,6 @@ services:
     networks:
       - github_analyzer_network
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -108,8 +82,6 @@ services:
       - DB_NAME=${DB_NAME:-github_analyzer}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_HOST=postgres
-      - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -125,8 +97,6 @@ services:
     networks:
       - github_analyzer_network
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -146,8 +116,6 @@ services:
       - DB_NAME=${DB_NAME:-github_analyzer}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_HOST=postgres
-      - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -158,8 +126,6 @@ services:
     networks:
       - github_analyzer_network
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -227,8 +193,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   backend_static:

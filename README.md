@@ -351,7 +351,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Docker and Docker Compose
 - Prometheus and Grafana
 - All open-source contributors
-
----
-
-**Made with ❤️ by the GitHub Analyzer Team**
